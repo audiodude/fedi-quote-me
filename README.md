@@ -191,6 +191,55 @@ npm run build
 
 The built files will be in `webapp/frontend/dist/`
 
+## Deployment
+
+### Deploy to fly.io
+
+Deploy the web app to fly.io with one command:
+
+```bash
+# Install flyctl if you haven't already
+curl -L https://fly.io/install.sh | sh
+
+# Login to fly.io
+fly auth login
+
+# Launch the app (first time)
+fly launch
+
+# Or deploy updates
+fly deploy
+```
+
+The app will be deployed with:
+- Automatic HTTPS
+- Auto-scaling (scales to zero when not in use)
+- Persistent storage for OAuth credentials
+- Production environment configuration
+
+After deployment, update the BASE_URL:
+```bash
+fly secrets set BASE_URL=https://your-app.fly.dev
+```
+
+### Docker
+
+You can also run the app locally with Docker:
+
+```bash
+# Build the image
+docker build -t mastodon-quotability .
+
+# Run the container
+docker run -p 8080:8080 \
+  -e ENVIRONMENT=production \
+  -e BASE_URL=http://localhost:8080 \
+  -v $(pwd)/credentials:/root/.mastodon_quotability \
+  mastodon-quotability
+```
+
+Visit http://localhost:8080
+
 ## Troubleshooting
 
 ### "Not authenticated" error

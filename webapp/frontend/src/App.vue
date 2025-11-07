@@ -229,7 +229,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 
-const API_BASE = 'http://localhost:5000/api'
+// Use relative URL in production, absolute in development
+const API_BASE = import.meta.env.DEV ? 'http://localhost:5000/api' : '/api'
 
 // State
 const step = ref('connect') // 'connect', 'redirecting', 'account'

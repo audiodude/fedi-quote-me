@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.venv/
+venv/
+ENV/
+env/
+
+# Node
+node_modules/
+npm-debug.log*
+.vite/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Credentials (will be mounted as volume)
+.mastodon_quotability/
+
+# Documentation
+README.md
+QUICKSTART.md
+.claude/
+
+# Frontend development
+webapp/frontend/dist/
+webapp/frontend/.vite/
+webapp/frontend/node_modules/
+
+# Other
+*.md
+fly.toml
