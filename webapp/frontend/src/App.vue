@@ -221,6 +221,9 @@
         <p class="mt-2">
           Your credentials are stored securely and only used for this session.
         </p>
+        <p class="mt-2">
+          Vibe-coded with Claude code by <a href="https://travisbriggs.com" target="_blank" rel="noopener noreferrer" class="text-purple-600 hover:underline">Travis Briggs</a>
+        </p>
       </footer>
     </div>
   </div>
