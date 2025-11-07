@@ -151,6 +151,49 @@ class MastodonQuotabilityAPI:
 
         return results
 
+    def analyze_posts_by_quote_policy(self) -> Dict[str, int]:
+        """
+        Analyze all posts and categorize them by quote policy.
+
+        Returns:
+            Dict with counts for 'public', 'followers', 'nobody', and 'unknown'
+        """
+        print("Analyzing posts by quote policy...")
+
+        posts = self.get_all_posts()
+
+        counts = {
+            'public': 0,
+            'followers': 0,
+            'nobody': 0,
+            'unknown': 0
+        }
+
+        for post in posts:
+            # Check if the post has quote_approval data
+            quote_approval = post.get('quote_approval')
+
+            if not quote_approval:
+                counts['unknown'] += 1
+                continue
+
+            # The quote_approval object has automatic/manual approval lists
+            # We need to check what the current policy is
+            # If 'public' is in automatic, it's public
+            # If 'followers' is in automatic but not public, it's followers-only
+            # Otherwise, it's nobody
+
+            automatic = quote_approval.get('automatic', [])
+
+            if 'public' in automatic:
+                counts['public'] += 1
+            elif 'followers' in automatic or 'following' in automatic:
+                counts['followers'] += 1
+            else:
+                counts['nobody'] += 1
+
+        return counts
+
     def get_account_info(self) -> Dict:
         """
         Get information about the authenticated account.
@@ -167,6 +210,21 @@ class MastodonQuotabilityAPI:
             'followers_count': self.account['followers_count'],
             'following_count': self.account['following_count']
         }
+
+    def get_account_info_with_breakdown(self) -> Dict:
+        """
+        Get account information with breakdown of posts by quote policy.
+
+        Returns:
+            Dict: Account information including post breakdown
+        """
+        info = self.get_account_info()
+
+        # Add quote policy breakdown
+        quote_breakdown = self.analyze_posts_by_quote_policy()
+        info['quote_breakdown'] = quote_breakdown
+
+        return info
 
     def set_default_quote_policy(self, policy: str = "public") -> bool:
         """

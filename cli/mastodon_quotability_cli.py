@@ -45,17 +45,32 @@ def authenticate(instance_url: str) -> MastodonAuthManager:
     return auth_manager
 
 
-def show_account_info(api: MastodonQuotabilityAPI):
+def show_account_info(api: MastodonQuotabilityAPI, show_breakdown: bool = False):
     """Display account information."""
-    info = api.get_account_info()
+    if show_breakdown:
+        info = api.get_account_info_with_breakdown()
+    else:
+        info = api.get_account_info()
+
     print("\nAccount Information:")
     print("=" * 60)
     print(f"Display Name: {info['display_name']}")
     print(f"Username: @{info['username']}")
     print(f"Profile URL: {info['url']}")
-    print(f"Posts: {info['posts_count']}")
+    print(f"\nPosts: {info['posts_count']}")
     print(f"Followers: {info['followers_count']}")
     print(f"Following: {info['following_count']}")
+
+    if 'quote_breakdown' in info:
+        breakdown = info['quote_breakdown']
+        print("\nQuote Policy Breakdown:")
+        print("-" * 60)
+        print(f"  Quotable by anyone:        {breakdown['public']}")
+        print(f"  Quotable by followers:     {breakdown['followers']}")
+        print(f"  Not quotable:              {breakdown['nobody']}")
+        if breakdown['unknown'] > 0:
+            print(f"  Unknown/No policy:         {breakdown['unknown']}")
+
     print()
 
 
@@ -103,6 +118,9 @@ Examples:
   # Authenticate and view account info
   python mastodon_quotability_cli.py --instance mastodon.social info
 
+  # View account info with breakdown of posts by quote policy
+  python mastodon_quotability_cli.py --instance mastodon.social info --breakdown
+
   # Enable public quoting for all posts
   python mastodon_quotability_cli.py --instance mastodon.social enable --policy public
 
@@ -123,7 +141,12 @@ Examples:
     subparsers = parser.add_subparsers(dest='command', help='Command to execute')
 
     # Info command
-    subparsers.add_parser('info', help='Show account information and post count')
+    info_parser = subparsers.add_parser('info', help='Show account information and post count')
+    info_parser.add_argument(
+        '--breakdown',
+        action='store_true',
+        help='Analyze and show breakdown of posts by quote policy (slower, fetches all posts)'
+    )
 
     # Enable command
     enable_parser = subparsers.add_parser('enable', help='Enable quotability for all posts')
@@ -164,10 +187,11 @@ Examples:
 
         # Execute command
         if args.command == 'info':
-            show_account_info(api)
+            show_breakdown = getattr(args, 'breakdown', False)
+            show_account_info(api, show_breakdown)
 
         elif args.command == 'enable':
-            show_account_info(api)
+            show_account_info(api, show_breakdown=True)
             enable_quotability(api, args.policy)
 
     except KeyboardInterrupt:

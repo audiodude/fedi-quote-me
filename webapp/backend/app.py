@@ -111,11 +111,12 @@ def get_account_info():
     """
     Get account information.
 
-    Query params: session_id
+    Query params: session_id, breakdown (optional, 'true' to include quote breakdown)
     Returns: Account info JSON
     """
     try:
         session_id = request.args.get('session_id')
+        include_breakdown = request.args.get('breakdown', 'false').lower() == 'true'
 
         if not session_id:
             return jsonify({'error': 'Session ID is required'}), 400
@@ -133,8 +134,11 @@ def get_account_info():
         client = auth_manager.get_api_client()
         api = MastodonQuotabilityAPI(client)
 
-        # Get account info
-        info = api.get_account_info()
+        # Get account info with or without breakdown
+        if include_breakdown:
+            info = api.get_account_info_with_breakdown()
+        else:
+            info = api.get_account_info()
 
         return jsonify(info)
 

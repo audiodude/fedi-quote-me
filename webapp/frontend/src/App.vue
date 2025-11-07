@@ -127,7 +127,7 @@
             </div>
 
             <div class="bg-gray-50 rounded-lg p-4 mb-6">
-              <div class="grid grid-cols-3 gap-4 text-center">
+              <div class="grid grid-cols-3 gap-4 text-center mb-4">
                 <div>
                   <div class="text-2xl font-bold text-purple-600">{{ accountInfo.posts_count }}</div>
                   <div class="text-sm text-gray-600">Posts</div>
@@ -139,6 +139,28 @@
                 <div>
                   <div class="text-2xl font-bold text-purple-600">{{ accountInfo.following_count }}</div>
                   <div class="text-sm text-gray-600">Following</div>
+                </div>
+              </div>
+
+              <!-- Quote Policy Breakdown -->
+              <div v-if="accountInfo.quote_breakdown" class="border-t border-gray-300 pt-4 mt-4">
+                <div class="text-sm font-medium text-gray-700 mb-3 text-center">Quote Policy Breakdown</div>
+                <div class="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <div class="text-lg font-semibold text-green-600">{{ accountInfo.quote_breakdown.public }}</div>
+                    <div class="text-xs text-gray-600">Public</div>
+                  </div>
+                  <div>
+                    <div class="text-lg font-semibold text-blue-600">{{ accountInfo.quote_breakdown.followers }}</div>
+                    <div class="text-xs text-gray-600">Followers</div>
+                  </div>
+                  <div>
+                    <div class="text-lg font-semibold text-red-600">{{ accountInfo.quote_breakdown.nobody }}</div>
+                    <div class="text-xs text-gray-600">Nobody</div>
+                  </div>
+                </div>
+                <div v-if="accountInfo.quote_breakdown.unknown > 0" class="text-center mt-2">
+                  <div class="text-xs text-gray-500">{{ accountInfo.quote_breakdown.unknown }} posts with unknown policy</div>
                 </div>
               </div>
             </div>
@@ -308,7 +330,7 @@ const loadAccountInfo = async () => {
     loading.value = true
     error.value = null
 
-    const response = await fetch(`${API_BASE}/account/info?session_id=${sessionId.value}`)
+    const response = await fetch(`${API_BASE}/account/info?session_id=${sessionId.value}&breakdown=true`)
     const data = await response.json()
 
     if (!response.ok) {
