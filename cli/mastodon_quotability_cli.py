@@ -57,6 +57,15 @@ def show_account_info(api: MastodonQuotabilityAPI, show_breakdown: bool = False)
     print(f"Display Name: {info['display_name']}")
     print(f"Username: @{info['username']}")
     print(f"Profile URL: {info['url']}")
+    print(f"Instance Version: {info.get('instance_version', 'unknown')}")
+
+    # Show version warning if not supported
+    if not info.get('supports_quote_policies', True):
+        print("\n⚠️  WARNING: This instance does not support quote policy management!")
+        print("   Quote policies require Mastodon 4.5 or later.")
+        print("   Please ask your instance administrator to upgrade.")
+        print("   You can still view your account info, but cannot enable quotability.")
+
     print(f"\nPosts: {info['posts_count']}")
     print(f"Followers: {info['followers_count']}")
     print(f"Following: {info['following_count']}")

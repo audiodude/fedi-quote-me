@@ -20,6 +20,52 @@ class MastodonQuotabilityAPI:
         self.client = mastodon_client
         self.account = self.client.account_verify_credentials()
         self._cached_posts: Optional[List[Dict]] = None
+        self._instance_info: Optional[Dict] = None
+        self._version_checked: bool = False
+
+    def get_instance_info(self) -> Dict:
+        """
+        Get information about the Mastodon instance.
+
+        Returns:
+            Dict: Instance information including version
+        """
+        if self._instance_info is None:
+            self._instance_info = self.client.instance()
+        return self._instance_info
+
+    def check_quote_policy_support(self) -> tuple[bool, str]:
+        """
+        Check if the instance supports quote policy management (Mastodon 4.5+).
+
+        Returns:
+            tuple[bool, str]: (supported, version_string)
+        """
+        if self._version_checked:
+            return True, ""  # Already checked, assume supported
+
+        try:
+            instance = self.get_instance_info()
+            version = instance.get('version', 'unknown')
+
+            # Parse version (format: "4.5.0" or "4.5.0+glitch")
+            version_parts = version.split('.')
+            if len(version_parts) >= 2:
+                major = int(version_parts[0])
+                minor = int(version_parts[1].split('+')[0].split('-')[0])
+
+                # Mastodon 4.5+ supports quote policies
+                if major > 4 or (major == 4 and minor >= 5):
+                    self._version_checked = True
+                    return True, version
+                else:
+                    return False, version
+
+            return False, version
+
+        except Exception as e:
+            print(f"Warning: Could not check instance version: {e}")
+            return False, "unknown"
 
     def get_post_count(self) -> int:
         """
@@ -144,7 +190,19 @@ class MastodonQuotabilityAPI:
 
         Returns:
             Dict with 'total', 'success', and 'failed' counts
+
+        Raises:
+            RuntimeError: If the instance doesn't support quote policies (Mastodon <4.5)
         """
+        # Check if instance supports quote policies
+        supported, version = self.check_quote_policy_support()
+        if not supported:
+            raise RuntimeError(
+                f"This Mastodon instance (version {version}) does not support quote policy management.\n"
+                f"Quote policies require Mastodon 4.5 or later.\n"
+                f"Please ask your instance administrator to upgrade."
+            )
+
         posts = self.get_all_posts()
         results = {
             'total': len(posts),
@@ -220,6 +278,9 @@ class MastodonQuotabilityAPI:
         Returns:
             Dict: Account information
         """
+        # Check version support
+        supported, version = self.check_quote_policy_support()
+
         return {
             'username': self.account['username'],
             'display_name': self.account['display_name'],
@@ -227,7 +288,9 @@ class MastodonQuotabilityAPI:
             'url': self.account['url'],
             'posts_count': self.account['statuses_count'],
             'followers_count': self.account['followers_count'],
-            'following_count': self.account['following_count']
+            'following_count': self.account['following_count'],
+            'instance_version': version,
+            'supports_quote_policies': supported
         }
 
     def get_account_info_with_breakdown(self) -> Dict:
