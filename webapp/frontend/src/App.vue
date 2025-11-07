@@ -70,47 +70,15 @@
           </form>
         </div>
 
-        <!-- Step 2: Authorize -->
-        <div v-if="step === 'authorize'" class="bg-white rounded-lg shadow-lg p-8">
+        <!-- Step 2: Redirecting (shown briefly) -->
+        <div v-if="step === 'redirecting'" class="bg-white rounded-lg shadow-lg p-8 text-center">
           <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-            Authorize the application
+            Redirecting to Mastodon...
           </h2>
           <p class="text-gray-600 mb-6">
-            Click the button below to authorize this application with your Mastodon instance.
-            After authorizing, you'll receive a code to paste back here.
+            You'll be redirected to your Mastodon instance to authorize this application.
           </p>
-
-          <a
-            :href="authUrl"
-            target="_blank"
-            class="block w-full bg-blue-600 text-white text-center py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition mb-6"
-          >
-            Open Authorization Page
-          </a>
-
-          <form @submit.prevent="completeAuth">
-            <div class="mb-4">
-              <label for="authCode" class="block text-sm font-medium text-gray-700 mb-2">
-                Authorization Code
-              </label>
-              <input
-                v-model="authCode"
-                type="text"
-                id="authCode"
-                placeholder="Paste the code here"
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              :disabled="loading"
-              class="w-full bg-purple-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {{ loading ? 'Verifying...' : 'Continue' }}
-            </button>
-          </form>
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
         </div>
 
         <!-- Step 3: Account Info -->
@@ -259,16 +227,14 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 
 const API_BASE = 'http://localhost:5000/api'
 
 // State
-const step = ref('connect') // 'connect', 'authorize', 'account'
+const step = ref('connect') // 'connect', 'redirecting', 'account'
 const instanceUrl = ref('')
 const sessionId = ref(null)
-const authUrl = ref('')
-const authCode = ref('')
 const accountInfo = ref(null)
 const quotePolicy = ref('public')
 const loading = ref(false)
@@ -283,6 +249,51 @@ const clearMessages = () => {
     error.value = null
     success.value = null
   }, 5000)
+}
+
+// Check if we're returning from OAuth callback
+onMounted(() => {
+  const urlParams = new URLSearchParams(window.location.search)
+  const code = urlParams.get('code')
+  const state = urlParams.get('state')
+
+  if (code && state) {
+    handleOAuthCallback(code, state)
+  }
+})
+
+// Handle OAuth callback
+const handleOAuthCallback = async (code, state) => {
+  try {
+    loading.value = true
+    error.value = null
+    step.value = 'account'
+
+    // Call backend to complete OAuth
+    const response = await fetch(`${API_BASE}/auth/callback?code=${code}&state=${state}`)
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to complete authentication')
+    }
+
+    sessionId.value = data.session_id
+    success.value = 'Successfully authenticated!'
+    clearMessages()
+
+    // Clean up URL
+    window.history.replaceState({}, document.title, window.location.pathname)
+
+    // Load account info
+    await loadAccountInfo()
+
+  } catch (err) {
+    error.value = err.message
+    clearMessages()
+    step.value = 'connect'
+  } finally {
+    loading.value = false
+  }
 }
 
 // Start OAuth flow
@@ -303,47 +314,16 @@ const startAuth = async () => {
       throw new Error(data.error || 'Failed to start authentication')
     }
 
-    sessionId.value = data.session_id
-    authUrl.value = data.auth_url
-    step.value = 'authorize'
+    // Save session info to localStorage for when we return
+    localStorage.setItem('oauth_session_id', data.session_id)
+    localStorage.setItem('oauth_state', data.state)
+
+    // Redirect to Mastodon OAuth page
+    window.location.href = data.auth_url
 
   } catch (err) {
     error.value = err.message
     clearMessages()
-  } finally {
-    loading.value = false
-  }
-}
-
-// Complete OAuth flow
-const completeAuth = async () => {
-  try {
-    loading.value = true
-    error.value = null
-
-    const response = await fetch(`${API_BASE}/auth/callback`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        session_id: sessionId.value,
-        auth_code: authCode.value
-      })
-    })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      throw new Error(data.error || 'Failed to complete authentication')
-    }
-
-    success.value = 'Successfully authenticated!'
-    clearMessages()
-    await loadAccountInfo()
-
-  } catch (err) {
-    error.value = err.message
-    clearMessages()
-  } finally {
     loading.value = false
   }
 }

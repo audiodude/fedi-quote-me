@@ -19,8 +19,12 @@ app.secret_key = secrets.token_hex(32)  # Generate a secure secret key
 # Configure CORS
 CORS(app, supports_credentials=True, origins=['http://localhost:5173'])
 
-# Store auth managers in session (in production, use Redis or similar)
+# Store auth managers and states (in production, use Redis or similar)
 auth_managers = {}
+auth_states = {}  # Store state tokens for CSRF protection
+
+# OAuth redirect URI
+REDIRECT_URI = 'http://localhost:5173/oauth/callback'
 
 
 @app.route('/api/health', methods=['GET'])
@@ -48,27 +52,31 @@ def start_auth():
         if not instance_url.startswith('http'):
             instance_url = f'https://{instance_url}'
 
-        # Create session ID
+        # Create session ID and state token for CSRF protection
         session_id = secrets.token_urlsafe(32)
+        state = secrets.token_urlsafe(32)
 
-        # Create auth manager
+        # Create auth manager with redirect URI
         auth_manager = MastodonAuthManager(
             instance_url,
-            client_name="Mastodon Quotability Manager"
+            client_name="Mastodon Quotability Manager",
+            redirect_uri=REDIRECT_URI
         )
 
         # Register app
         auth_manager.register_app()
 
-        # Get auth URL
-        auth_url = auth_manager.get_auth_url()
+        # Get auth URL with state parameter
+        auth_url = auth_manager.get_auth_url(state=state)
 
-        # Store auth manager
+        # Store auth manager and state
         auth_managers[session_id] = auth_manager
+        auth_states[state] = session_id
 
         return jsonify({
             'auth_url': auth_url,
             'session_id': session_id,
+            'state': state,
             'instance_url': instance_url
         })
 
@@ -76,21 +84,40 @@ def start_auth():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/auth/callback', methods=['POST'])
+@app.route('/api/auth/callback', methods=['GET', 'POST'])
 def auth_callback():
     """
     Complete the OAuth flow.
 
-    Expects JSON body: { "session_id": "...", "auth_code": "..." }
-    Returns: { "success": true }
+    GET (OAuth redirect): Query params code, state
+    POST (manual): JSON body { "session_id": "...", "auth_code": "..." }
+    Returns: { "success": true, "session_id": "..." }
     """
     try:
-        data = request.json
-        session_id = data.get('session_id')
-        auth_code = data.get('auth_code')
+        # Handle GET request from OAuth redirect
+        if request.method == 'GET':
+            auth_code = request.args.get('code')
+            state = request.args.get('state')
 
-        if not session_id or not auth_code:
-            return jsonify({'error': 'Session ID and auth code are required'}), 400
+            if not auth_code or not state:
+                return jsonify({'error': 'Missing code or state parameter'}), 400
+
+            # Verify state and get session ID
+            session_id = auth_states.get(state)
+            if not session_id:
+                return jsonify({'error': 'Invalid or expired state token'}), 400
+
+            # Clean up state after use
+            del auth_states[state]
+
+        # Handle POST request (legacy manual flow)
+        else:
+            data = request.json
+            session_id = data.get('session_id')
+            auth_code = data.get('auth_code')
+
+            if not session_id or not auth_code:
+                return jsonify({'error': 'Session ID and auth code are required'}), 400
 
         # Get auth manager
         auth_manager = auth_managers.get(session_id)
@@ -100,7 +127,10 @@ def auth_callback():
         # Complete authentication
         auth_manager.authenticate_with_code(auth_code)
 
-        return jsonify({'success': True})
+        return jsonify({
+            'success': True,
+            'session_id': session_id
+        })
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500

@@ -12,16 +12,18 @@ from mastodon import Mastodon
 class MastodonAuthManager:
     """Manages Mastodon OAuth authentication and credentials."""
 
-    def __init__(self, instance_url: str, client_name: str = "Quotability Manager"):
+    def __init__(self, instance_url: str, client_name: str = "Quotability Manager", redirect_uri: Optional[str] = None):
         """
         Initialize the auth manager.
 
         Args:
             instance_url: The Mastodon instance URL (e.g., https://mastodon.social)
             client_name: Name of the application
+            redirect_uri: OAuth redirect URI. If None, uses 'urn:ietf:wg:oauth:2.0:oob' for CLI
         """
         self.instance_url = instance_url.rstrip('/')
         self.client_name = client_name
+        self.redirect_uri = redirect_uri or 'urn:ietf:wg:oauth:2.0:oob'
         self.credentials_dir = Path.home() / ".mastodon_quotability"
         self.credentials_dir.mkdir(exist_ok=True)
 
@@ -70,16 +72,20 @@ class MastodonAuthManager:
             self.client_name,
             api_base_url=self.instance_url,
             to_file=str(self.client_cred_file),
-            scopes=['read', 'write']
+            scopes=['read', 'write'],
+            redirect_uris=self.redirect_uri
         )
         # Secure the newly created credential file
         self._secure_file_permissions(self.client_cred_file)
         print(f"App registered successfully!")
         return str(self.client_cred_file)
 
-    def get_auth_url(self) -> str:
+    def get_auth_url(self, state: Optional[str] = None) -> str:
         """
         Get the OAuth authorization URL.
+
+        Args:
+            state: Optional state parameter for CSRF protection
 
         Returns:
             str: The authorization URL for the user to visit
@@ -92,10 +98,15 @@ class MastodonAuthManager:
             api_base_url=self.instance_url
         )
 
-        return mastodon.auth_request_url(
-            scopes=['read', 'write'],
-            redirect_uris='urn:ietf:wg:oauth:2.0:oob'
-        )
+        params = {
+            'scopes': ['read', 'write'],
+            'redirect_uris': self.redirect_uri
+        }
+
+        if state:
+            params['state'] = state
+
+        return mastodon.auth_request_url(**params)
 
     def authenticate_with_code(self, auth_code: str) -> str:
         """
@@ -117,7 +128,7 @@ class MastodonAuthManager:
 
         access_token = mastodon.log_in(
             code=auth_code,
-            redirect_uri='urn:ietf:wg:oauth:2.0:oob',
+            redirect_uri=self.redirect_uri,
             scopes=['read', 'write'],
             to_file=str(self.user_cred_file)
         )
