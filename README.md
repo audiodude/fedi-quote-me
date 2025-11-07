@@ -122,6 +122,11 @@ In another terminal:
 
 ```bash
 cd webapp/frontend
+
+# Install dependencies (first time only)
+npm install
+
+# Start the development server
 npm run dev
 ```
 
