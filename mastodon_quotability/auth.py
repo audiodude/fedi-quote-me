@@ -25,13 +25,30 @@ class MastodonAuthManager:
         self.credentials_dir = Path.home() / ".mastodon_quotability"
         self.credentials_dir.mkdir(exist_ok=True)
 
+        # Secure the credentials directory (700 - owner only)
+        os.chmod(self.credentials_dir, 0o700)
+
         # File paths for storing credentials
         self.client_cred_file = self.credentials_dir / f"{self._sanitize_url(instance_url)}_client.secret"
         self.user_cred_file = self.credentials_dir / f"{self._sanitize_url(instance_url)}_user.secret"
 
+        # Secure existing credential files if they exist
+        self._secure_file_permissions(self.client_cred_file)
+        self._secure_file_permissions(self.user_cred_file)
+
     def _sanitize_url(self, url: str) -> str:
         """Sanitize URL for use as filename."""
         return url.replace('https://', '').replace('http://', '').replace('/', '_')
+
+    def _secure_file_permissions(self, file_path: Path) -> None:
+        """
+        Set secure permissions (600 - owner read/write only) on a credential file.
+
+        Args:
+            file_path: Path to the credential file
+        """
+        if file_path.exists():
+            os.chmod(file_path, 0o600)
 
     def is_authenticated(self) -> bool:
         """Check if user credentials exist."""
@@ -55,6 +72,8 @@ class MastodonAuthManager:
             to_file=str(self.client_cred_file),
             scopes=['read', 'write']
         )
+        # Secure the newly created credential file
+        self._secure_file_permissions(self.client_cred_file)
         print(f"App registered successfully!")
         return str(self.client_cred_file)
 
@@ -102,6 +121,9 @@ class MastodonAuthManager:
             scopes=['read', 'write'],
             to_file=str(self.user_cred_file)
         )
+
+        # Secure the newly created credential file
+        self._secure_file_permissions(self.user_cred_file)
 
         print(f"Successfully authenticated!")
         return access_token
