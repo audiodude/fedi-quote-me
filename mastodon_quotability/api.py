@@ -19,6 +19,7 @@ class MastodonQuotabilityAPI:
         """
         self.client = mastodon_client
         self.account = self.client.account_verify_credentials()
+        self._cached_posts: Optional[List[Dict]] = None
 
     def get_post_count(self) -> int:
         """
@@ -29,16 +30,26 @@ class MastodonQuotabilityAPI:
         """
         return self.account['statuses_count']
 
-    def get_all_posts(self, progress_callback: Optional[Callable[[int, int], None]] = None) -> List[Dict]:
+    def get_all_posts(
+        self,
+        progress_callback: Optional[Callable[[int, int], None]] = None,
+        use_cache: bool = True
+    ) -> List[Dict]:
         """
         Fetch all posts from the authenticated user.
 
         Args:
             progress_callback: Optional callback function(current, total) for progress updates
+            use_cache: If True, return cached posts if available (default: True)
 
         Returns:
             List[Dict]: List of all post objects
         """
+        # Return cached posts if available and cache is enabled
+        if use_cache and self._cached_posts is not None:
+            print(f"Using cached posts ({len(self._cached_posts)} posts)")
+            return self._cached_posts
+
         all_posts = []
         total_count = self.get_post_count()
         account_id = self.account['id']
@@ -73,7 +84,15 @@ class MastodonQuotabilityAPI:
                 print(f"Error fetching posts: {e}")
                 break
 
+        # Cache the posts
+        self._cached_posts = all_posts
+
         return all_posts
+
+    def clear_post_cache(self) -> None:
+        """Clear the cached posts, forcing a fresh fetch on next request."""
+        self._cached_posts = None
+        print("Post cache cleared")
 
     def update_post_quotability(
         self,
