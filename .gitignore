@@ -27,9 +27,6 @@ venv/
 ENV/
 env/
 
-# Pipenv
-Pipfile.lock
-
 # Flask
 instance/
 .webassets-cache
