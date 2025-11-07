@@ -2,6 +2,8 @@
 
 A tool to enable quote post functionality (Mastodon 4.5+ feature) for all your existing posts on Mastodon-compatible servers.
 
+Shamelessly vibe-coded with Claude code.
+
 ## Features
 
 - **OAuth Authentication**: Secure authentication with any Mastodon-compatible server
