@@ -31,8 +31,10 @@ class MastodonAuthManager:
         os.chmod(self.credentials_dir, 0o700)
 
         # File paths for storing credentials
-        self.client_cred_file = self.credentials_dir / f"{self._sanitize_url(instance_url)}_client.secret"
-        self.user_cred_file = self.credentials_dir / f"{self._sanitize_url(instance_url)}_user.secret"
+        # Use different files for web (redirect) vs CLI (manual) to avoid redirect URI conflicts
+        suffix = "_web" if redirect_uri and redirect_uri != 'urn:ietf:wg:oauth:2.0:oob' else ""
+        self.client_cred_file = self.credentials_dir / f"{self._sanitize_url(instance_url)}_client{suffix}.secret"
+        self.user_cred_file = self.credentials_dir / f"{self._sanitize_url(instance_url)}_user{suffix}.secret"
 
         # Secure existing credential files if they exist
         self._secure_file_permissions(self.client_cred_file)
