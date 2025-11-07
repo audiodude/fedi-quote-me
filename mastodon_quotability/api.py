@@ -96,10 +96,16 @@ class MastodonQuotabilityAPI:
 
         try:
             # Use the interaction_policy endpoint
-            url = f"/api/v1/statuses/{status_id}/interaction_policy"
+            endpoint = f'/api/v1/statuses/{status_id}/interaction_policy'
             params = {'quote_approval_policy': policy}
 
-            response = self.client.request('PUT', url, params)
+            # Use the internal API request method (name-mangled)
+            response = self.client._Mastodon__api_request(
+                'PUT',
+                endpoint,
+                params,
+                use_json=True
+            )
             return True
         except Exception as e:
             print(f"Error updating status {status_id}: {e}")
